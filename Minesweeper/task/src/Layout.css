@@ -1,0 +1,38 @@
+.board {
+    display: flex;
+    flex-direction: column;
+}
+.row {
+    display: flex;
+    flex-direction: row;
+}
+.cell {
+    width: 45px;
+    height:45px;
+    font-size: 15px;
+    margin: 5px;
+    background: black;
+}
+.Header {
+    display: flex;
+    flex-direction: row;
+}
+.Header h2 {
+    margin: 20px;
+}
+.control {
+    display: flex;
+    flex-direction: row;
+}
+.control div {
+    margin: 30px 120px;
+}
+.reset {
+    background-color: transparent;
+    border: none;
+    color: white;
+    text-align: center;
+    text-decoration: none;
+    display: flex;
+    font-size: calc(10px + 2vmin);
+}
