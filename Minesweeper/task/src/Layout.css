@@ -45,6 +45,8 @@
     flex-direction: row;
 }
 .control div {
+    justify-content: center;
+    align-items: center;
     margin: 20px 55px;
     padding: 10px;
 }
