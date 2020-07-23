@@ -5,60 +5,42 @@ import target from './target.svg';
 import './App.css';
 import './Layout.css'
 
-function ResetButton(props) {
-    return (
-        <div className="reset" onClick={() => alert("Reset button clicked!")}>Reset</div>
-    )
-}
-
-class Timer extends React.Component {
+class ResetButton extends React.Component {
     constructor(props) {
         super(props);
-        this.state = {
-            timerOn: false,
-            timerStart: 0,
-            timerTime: 0,
-        };
-        this.timerIsOn = this.timerIsOn.bind(this)
-        this.startTimer = this.startTimer.bind(this)
-        this.stopTimer = this.stopTimer.bind(this)
-        this.resetTimer = this.timerIsOn.bind(this)
+        this.handleClickAction = this.handleClickAction.bind(this);
     }
-
-    timerIsOn() {
-        return this.state.timerOn === true;
+    handleClickAction() {
+        this.props.onClickReset();
     }
-    startTimer() {
-        this.setState({
-            timerOn: true,
-            timerTime: this.state.timerTime,
-            timerStart: Date.now() - this.state.timerTime,
-        });
-        this.timer = setInterval(() => {
-            this.setState({
-                timerTime: Date.now() - this.state.timerStart
-            });
-        }, 10);
-    }
-    stopTimer() {
-        this.setState({timerOn: false});
-        clearInterval(this.timer);
-    }
-    resetTimer() {
-        this.setState({
-            timerStart: 0,
-            timerTime: 0,
-        })
-    }
-
     render() {
-        const { timerTime } = this.state
-        let seconds = ("0" + (Math.floor(timerTime / 1000) % 60)).slice(-2);
-        let minutes = ("0" + (Math.floor(timerTime / 60000) % 60)).slice(-1);
+        const time = this.props.timerTime;
+        const status = this.props.gameStatus;
+        let button;
+        if (status === "lost") {
+            button = "☹";
+        } else {
+            if (time < 1) {
+                button = "🙂";
+            } else if (time < 90000) {
+                button = "😍";
+            } else {
+                button = "😴"
+            }
+        }
         return (
-            <div className="timer" ref={this.props.forwardRef}>{minutes}:{seconds}</div>
+            <div className="reset" onClick={this.handleClickAction}>{button}</div>
         )
     }
+}
+
+function Timer(props) {
+    const time = props.timerTime;
+    let seconds = ("0" + (Math.floor(time / 1000) % 60)).slice(-2);
+    let minutes = ("0" + (Math.floor(time / 60000) % 60)).slice(-1);
+    return (
+        <div className="timer" >{minutes}:{seconds}</div>
+    )
 }
 
 class Cell extends React.Component {
@@ -88,7 +70,7 @@ class Cell extends React.Component {
 function FlagsCounter(props) {
     return (
         <div className="flagsCounter">
-            {props.flags}
+            💣 {props.flags}
         </div>
     )
 }
@@ -101,8 +83,51 @@ class Board extends React.Component {
             gameStatus: false,
             mineCount: this.props.mines,
             flagCount: this.props.flags,
+            unrevealed: true,
+
+            timerOn: false,
+            timerStart: 0,
+            timerTime: 0,
         };
-        this.childRef = React.createRef();
+        this.onClickReset = this.onClickReset.bind(this);
+    }
+
+    onClickReset() {
+        const newBoard = this.initBoardData(this.props.height, this.props.width, this.props.mines);
+        this.stopTimer();
+        this.setState({
+            boardData: newBoard,
+            gameStatus: false,
+            flagCount: this.props.flags,
+            unrevealed: true,
+        });
+        this.resetTimer();
+    }
+
+    timerIsOn() {
+        return this.state.timerOn === true;
+    }
+    startTimer() {
+        this.setState({
+            timerOn: true,
+            timerTime: this.state.timerTime,
+            timerStart: Date.now() - this.state.timerTime,
+        });
+        this.timer = setInterval(() => {
+            this.setState({
+                timerTime: Date.now() - this.state.timerStart
+            });
+        }, 10);
+    }
+    stopTimer() {
+        this.setState({timerOn: false});
+        clearInterval(this.timer);
+    }
+    resetTimer() {
+        this.setState({
+            timerStart: 0,
+            timerTime: 0,
+        })
     }
 
     renderField(data) {
@@ -121,19 +146,19 @@ class Board extends React.Component {
             })
         })
     }
-    renderControlPanel(flags) {
+    renderControlPanel(flags, onClickReset, timerTime, gameStatus) {
         return (
             <div className="control">
                 <FlagsCounter flags={flags}/>
-                <ResetButton/>
-                <Timer ref={this.childRef}/>
+                <ResetButton onClickReset={onClickReset} timerTime={timerTime} gameStatus={gameStatus}/>
+                <Timer timerTime={timerTime}/>
             </div>
         )
     }
     render() {
         return (
             <div className="board">
-                {this.renderControlPanel(this.state.flagCount)}
+                {this.renderControlPanel(this.state.flagCount, this.onClickReset, this.state.timerTime, this.state.gameStatus)}
                 <div className="field">
                     {this.renderField(this.state.boardData)}
                 </div>
@@ -142,21 +167,28 @@ class Board extends React.Component {
     }
 
     handleCellClick(x, y) {
-        if (!this.state.gameStatus && !this.childRef.current.timerIsOn()) {
-            this.childRef.current.resetTimer();
-            this.childRef.current.startTimer();
+        if (!this.state.gameStatus && !this.timerIsOn()) {
+            this.setState({unrevealed: false})
+            this.resetTimer();
+            this.startTimer();
         }
         if (this.state.boardData[x][y].revealed || this.state.boardData[x][y].flagged || this.state.gameStatus)
             return null;
         let updatedData = this.state.boardData;
         updatedData[x][y].revealed = true;
         if (this.state.boardData[x][y].mine) {
-            this.setState({gameStatus: "lost"});
-            this.childRef.current.stopTimer();
+            if (this.state.unrevealed) {
+                this.onClickReset();
+                this.handleCellClick(x, y);
+                return null;
+            } else {
+                this.setState({gameStatus: "lost"});
+                this.stopTimer();
+                this.revealMines();
+            }
         }
         if (this.getHidden(updatedData).length === this.props.mines) {
             this.setState({gameStatus: "win"});
-            this.revealBoard();
         }
         if (updatedData[x][y].neighbor === 0) {
             updatedData = this.revealEmpty(x, y, updatedData)
@@ -205,11 +237,13 @@ class Board extends React.Component {
         return this.state.boardData.flat().filter(x => !x.revealed)
     }
 
-    revealBoard() {
+    revealMines() {
         let updatedData = this.state.boardData;
         updatedData.forEach(row =>
-            row.forEach(cell =>
-                cell.revealed = true
+            row.forEach(cell => {
+                    if (cell.mine)
+                        cell.revealed = true
+                }
             )
         )
         this.setState({

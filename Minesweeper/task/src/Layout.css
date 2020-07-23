@@ -51,6 +51,7 @@
     padding: 10px;
 }
 .reset {
+    cursor: pointer;
     background-color: transparent;
     border: none;
     color: white;
